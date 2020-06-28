@@ -1,6 +1,9 @@
 import json,random,os,time
 from termcolor import colored
 from Node import Node
+
+WAIT_TIME = 0.3
+
 def convert_index_to_pos(index,row,col):
     posx = index // col
     posy = index % col
@@ -53,18 +56,32 @@ class Board:
                 self.grid[path[i-1][0]][path[i-1][1]] = None
             self.grid[path[i][0]][path[i][1]] = Node("o",color)
             self.update_screen()
-            time.sleep(0.5)
-        clear = self.check_clear(ex,ey)
-        if not clear:
+            time.sleep(WAIT_TIME)
+        clear_nodes = self.check_clear(ex,ey)
+        if not clear_nodes:
+            # flip the old "-" node
+            flip = self.flip()
+            # check new node for clear
+            new_clear_nodes = []
+            for node in flip:
+                new_clear = self.check_clear(node[0],node[1])
+                if (new_clear):
+                    new_clear_nodes = [*new_clear_nodes,*new_clear]
+            if new_clear_nodes:
+                self.clear(new_clear_nodes)
+            self.update_screen()
             self.gen_node(3,"-")
+        else:
+            self.clear(clear_nodes)
         self.update_screen()
 
     def check_clear(self,x,y):
         clear = False
         color = self.grid[x][y].color
+        clear_cells = []
         for i in range(4):
             total = 1
-            total_in_line = [(x,y)]
+            total_in_line = []
             for j in range(2):
                 cx = x
                 cy = y
@@ -85,52 +102,28 @@ class Board:
                     total_in_line.append((cx,cy))
             if total > 3:
                 clear = True
-                for pos in total_in_line:
-                    self.grid[pos[0]][pos[1]] = Node("x",0)
-        self.update_screen()
-        time.sleep(0.5)
-        # for i in range(self.matrix_row):
-        #     for j in range(self.matrix_col):
-        #         if (self.grid[i][j] and self.grid[i][j].ntype == "x"):
-        #             self.grid[i][j] = None
-        #         if (self.grid[i][j] and self.grid[i][j].ntype == "-" and not clear):
-        #             self.grid[i][j] = Node("o",self.grid[i][j].color)
-
-        clear = self.clear(clear)
-        self.update_screen()
-        return clear
-        # time.sleep(0.5)
-
-    def clear(self,clear):
+                clear_cells = [*clear_cells,*total_in_line]
         if clear:
-            for i in range(self.matrix_row):
-                for j in range(self.matrix_col):
-                    if (self.grid[i][j] and self.grid[i][j].ntype == "x"):
-                        self.grid[i][j] = None
-        else:
-            newNodes = []
-            for i in range(self.matrix_row):
+            clear_cells = [*clear_cells,(x,y)]
+
+        return clear_cells
+
+    def clear(self,clear_cells):
+        for pos in clear_cells:
+            self.grid[pos[0]][pos[1]] = Node("x",0)
+        self.update_screen()
+        time.sleep(WAIT_TIME)
+        for pos in clear_cells:
+            self.grid[pos[0]][pos[1]] = None
+
+    def flip(self):
+        newNodes = []
+        for i in range(self.matrix_row):
                 for j in range(self.matrix_col):
                     if (self.grid[i][j] and self.grid[i][j].ntype == "-"):
                         self.grid[i][j] = Node("o",self.grid[i][j].color)
                         newNodes.append((i,j))
-            self.update_screen()
-            time.sleep(0.5)
-            for node in newNodes:
-                clr = self.check_clear(node[0],node[1])
-                if clr:
-                    self.clear(True)
-                    clear = True
-        return clear
-        # self.update_screen()
-        # for i in range(self.matrix_row):
-        #     for j in range(self.matrix_col):
-        #         if (self.grid[i][j] and self.grid[i][j].ntype == "x"):
-        #             self.grid[i][j] = None
-        #         if (self.grid[i][j] and self.grid[i][j].ntype == "-" and not clear):
-        #             self.grid[i][j] = Node("o",self.grid[i][j].color)
-        # self.update_screen()
-        # return clear
+        return newNodes
 
     def find_path(self,sx,sy,ex,ey):
         # if index out of bound -> return
@@ -188,13 +181,8 @@ class Board:
         while (prev[trace_x][trace_y]):
             trace_path.insert(0,(trace_x,trace_y))
             trace_x,trace_y = prev[trace_x][trace_y]
-        # while (trace_x != sx or trace_y != sy):
-        #     trace_path.insert(0,(trace_x,trace_y))
-        #     trace_x,trace_y = prev[trace_x][trace_y]
         if (trace_path):
             trace_path = [(sx,sy),*trace_path]
-        # print(trace_path)
-        # time.sleep(100000)
         return trace_path
 
     def print_grid(self):
